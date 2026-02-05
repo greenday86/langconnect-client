@@ -1,17 +1,26 @@
 """Auth to resolve user object."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends
 from fastapi.exceptions import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from gotrue.types import User
 from starlette.authentication import BaseUser
 from supabase import create_client
 
 from langconnect import config
 
 security = HTTPBearer()
+
+try:
+    # supabase-py 2.x (current) splits auth types into supabase_auth
+    from supabase_auth.types import User  # type: ignore
+except Exception:  # pragma: no cover
+    try:
+        # legacy gotrue package (older stacks)
+        from gotrue.types import User  # type: ignore
+    except Exception:  # pragma: no cover
+        User = Any  # type: ignore
 
 
 class AuthenticatedUser(BaseUser):

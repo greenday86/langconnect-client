@@ -18,6 +18,8 @@ asyncpg>=0.30.0
 psycopg[binary]>=3.2.6
 pillow>=11.2.1
 lxml>=5.4.0
+# Python 3.11: use numba with prebuilt wheels (unstructured[docx] dependency)
+numba>=0.60.0
 unstructured[docx]>=0.17.2
 python-docx>=1.1.0
 supabase>=2.15.1

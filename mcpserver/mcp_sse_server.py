@@ -14,7 +14,7 @@ import requests
 from dotenv import load_dotenv
 from langchain_core.output_parsers import BaseOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 from fastmcp import FastMCP
 
@@ -27,7 +27,27 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
 SSE_PORT = int(os.getenv("SSE_PORT", "8765"))
+LLM_PROVIDER = (os.getenv("LLM_PROVIDER") or "openai").lower()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY", "")
+AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01")
+
+
+def _get_llm():
+    """Return Chat LLM instance (OpenAI or Azure) from env."""
+    if LLM_PROVIDER == "azure" and AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY:
+        return AzureChatOpenAI(
+            azure_endpoint=AZURE_OPENAI_ENDPOINT.rstrip("/"),
+            api_key=AZURE_OPENAI_API_KEY,
+            api_version=AZURE_OPENAI_API_VERSION,
+            deployment_name=AZURE_OPENAI_DEPLOYMENT or "gpt-4o-mini",
+            temperature=1,  # 일부 Azure 모델(gpt-5-mini 등)은 temperature=0 미지원
+        )
+    if OPENAI_API_KEY:
+        return ChatOpenAI(temperature=0, api_key=OPENAI_API_KEY)
+    return None
 
 
 # Output parser for multi-query generation
@@ -352,12 +372,13 @@ async def delete_document(collection_id: str, document_id: str) -> str:
 @mcp.tool
 async def multi_query(question: str) -> str:
     """Generate multiple queries (3-5) for better vector search results from a single user question."""
-    if not OPENAI_API_KEY:
-        return json.dumps({"error": "OpenAI API key not configured"})
+    llm = _get_llm()
+    if llm is None:
+        return json.dumps(
+            {"error": "LLM not configured. Set OPENAI_API_KEY or (Azure) AZURE_OPENAI_*."}
+        )
 
     try:
-        # Initialize LLM
-        llm = ChatOpenAI(temperature=0, api_key=OPENAI_API_KEY)
 
         # Create prompt template
         query_prompt = PromptTemplate(

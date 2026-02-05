@@ -17,6 +17,22 @@ else:
 
 def get_embeddings() -> Embeddings:
     """Get the embeddings instance based on the environment."""
+    provider = env("LLM_PROVIDER", cast=str, default="openai").lower()
+    if provider == "azure":
+        from langchain_openai import AzureOpenAIEmbeddings
+
+        return AzureOpenAIEmbeddings(
+            azure_endpoint=env("AZURE_OPENAI_ENDPOINT", cast=str, default=""),
+            api_key=env("AZURE_OPENAI_API_KEY", cast=str, default=""),
+            api_version=env(
+                "AZURE_OPENAI_API_VERSION", cast=str, default="2024-02-01"
+            ),
+            model=env(
+                "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
+                cast=str,
+                default="text-embedding-3-small",
+            ),
+        )
     from langchain_openai import OpenAIEmbeddings
 
     return OpenAIEmbeddings(model="text-embedding-3-small")
